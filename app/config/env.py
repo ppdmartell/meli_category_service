@@ -9,6 +9,7 @@ class Settings:
     AUTH_SERVICE_URL = None
     AUTH_SERVICE_PORT = None
     AUTH_SERVICE_ROUTE = None
+    MELI_API_BASE_URL = None
     DB_URL = None
 
     @classmethod

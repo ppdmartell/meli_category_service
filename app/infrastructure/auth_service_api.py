@@ -30,6 +30,7 @@ class AuthServiceClient:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            print("[WARNING] Check the auth_service microservice is up and listening.")
             print(f"[ERROR] {e}")
             raise e
         
