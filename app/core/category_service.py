@@ -6,4 +6,4 @@ class CategoryService:
         self.auth_client = AuthServiceClient()
 
     def initialize_access_token(self):
-        return self.auth_client.get_access_token()
+        return self.auth_client.initialize_access_token()
