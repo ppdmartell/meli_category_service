@@ -82,3 +82,6 @@ class AuthServiceClient:
                 "Call fetch_access_token() first."
             )
         return self.token_data
+    
+    def initialize_access_token(self):
+        self.fetch_access_token()
