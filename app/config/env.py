@@ -36,7 +36,6 @@ class Settings:
             env_path = Path(__file__).resolve().parents[2] / ".env"
 
             if env_path.exists():
-                print("[DEBUG] Printing env_path.exists()")
                 load_dotenv(dotenv_path=env_path)
                 cls.AUTH_SERVICE_PROTOCOL = os.getenv("AUTH_SERVICE_PROTOCOL")
                 cls.AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL")
@@ -46,11 +45,6 @@ class Settings:
                 cls.MELI_API_SITES_URL = os.getenv("MELI_API_SITES_URL")
                 cls.DB_URL = os.getenv("DB_URL")
 
-                
-                print("[DEBUG] Printing env vars:")
-                print(f"{cls.AUTH_SERVICE_PROTOCOL}")   # DEBUG
-                print(f"{cls.AUTH_SERVICE_URL}")        # DEBUG
-
                 if not all([cls.AUTH_SERVICE_PROTOCOL, cls.AUTH_SERVICE_URL, cls.AUTH_SERVICE_PORT, cls.AUTH_SERVICE_ROUTE, cls.DB_URL]):
                     raise EnvironmentError("[ERROR] Missing one or more required environment variables:" \
                     " AUTH_SERVICE_PROTOCOL," \
@@ -59,7 +53,6 @@ class Settings:
                     " AUTH_SERVICE_ROUTE" \
                     " DB_URL.")
             else:
-                print("[DEBUG] Printing env_path.exists() DOESN'T EXIST")
                 fallback_loaded = load_dotenv()
                 if not fallback_loaded:
                     raise FileNotFoundError("[ERROR] Missing .env file in both expected and fallback paths.")

@@ -24,9 +24,7 @@ class AuthServiceClient:
         Fetches a new access token from meli_auth_service.
         Should be called only once at service startup.
         """
-        print("[DEBUG] About to load ####################################")
         Settings.load()
-        print("[DEBUG] Loaded ####################################")
         if not all([
             Settings.AUTH_SERVICE_PROTOCOL,
             Settings.AUTH_SERVICE_URL,
@@ -57,7 +55,7 @@ class AuthServiceClient:
         if not data.get("access_token"):
             raise RuntimeError("[ERROR] No access_token found in meli_auth_service response.")
         self.token_data = data
-        print(f"[DEBUG] access_token: {data.get("access_token")}")
+        print(f"[DEBUG] ###################################### {data}")
         return data
     
     # Returns the access_token only (no the full json metadata)
@@ -65,6 +63,7 @@ class AuthServiceClient:
         """
         Returns the access token only.
         """
+        print(f"[DEBUG] ###################################### {self.token_data}")
         if not self.token_data:
             raise RuntimeError(
                 "[ERROR] Token data not initialized. "

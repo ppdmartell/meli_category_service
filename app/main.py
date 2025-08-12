@@ -1,9 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 
 from app.core.category_service import CategoryService
+from app.infrastructure.auth_api import AuthServiceClient
+from app.routes import category_routes
+from app.dependencies.singleton_auth_service_client import get_auth_service_client # Singleton imported
 
-category_service = CategoryService()
+
+category_service = CategoryService(get_auth_service_client())   # Singleton injected to the constructor
+
 
 # This code will try to get the access_token from meli_auth_service microservice before everything
 # and if it fails, the app will fail fast.
@@ -21,6 +26,7 @@ async def lifespan(app: FastAPI):
     # Optional: add shutdown code here if needed
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(category_routes.router)
 
 @app.get("/health")
 def health():
