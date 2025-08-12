@@ -10,6 +10,7 @@ class Settings:
     AUTH_SERVICE_PORT = None
     AUTH_SERVICE_ROUTE = None
     MELI_API_BASE_URL = None
+    MELI_API_SITES_URL = None
     DB_URL = None
 
     @classmethod
@@ -22,6 +23,8 @@ class Settings:
         cls.AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL")
         cls.AUTH_SERVICE_PORT = os.getenv("AUTH_SERVICE_URL")
         cls.AUTH_SERVICE_PORT = os.getenv("AUTH_SERVICE_ROUTE")
+        cls.MELI_API_BASE_URL = os.getenv("MELI_API_BASE_URL")
+        cls.MELI_API_SITES_URL = os.getenv("MELI_API_SITES_URL")
         cls.DB_URL = os.getenv("DB_URL")
         
         if not all([cls.AUTH_SERVICE_PROTOCOL, cls.AUTH_SERVICE_URL, cls.AUTH_SERVICE_PORT, cls.AUTH_SERVICE_ROUTE, cls.DB_URL]):
@@ -38,6 +41,8 @@ class Settings:
                 cls.AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL")
                 cls.AUTH_SERVICE_PORT = os.getenv("AUTH_SERVICE_PORT")
                 cls.AUTH_SERVICE_ROUTE = os.getenv("AUTH_SERVICE_ROUTE")
+                cls.MELI_API_BASE_URL = os.getenv("MELI_API_BASE_URL")
+                cls.MELI_API_SITES_URL = os.getenv("MELI_API_SITES_URL")
                 cls.DB_URL = os.getenv("DB_URL")
 
                 if not all([cls.AUTH_SERVICE_PROTOCOL, cls.AUTH_SERVICE_URL, cls.AUTH_SERVICE_PORT, cls.AUTH_SERVICE_ROUTE, cls.DB_URL]):
