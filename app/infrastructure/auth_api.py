@@ -5,7 +5,7 @@ class AuthServiceClient:
 
     URL = None
     
-    token_data = None       # Store token data for reuse instead of calling meli_auth_service every time
+    #token_data = None       # Store token data for reuse instead of calling meli_auth_service every time
                             # please note, meli_auth_service response is the access_token along other info
                             # not the token alone.
 
@@ -54,33 +54,33 @@ class AuthServiceClient:
 
         if not data.get("access_token"):
             raise RuntimeError("[ERROR] No access_token found in meli_auth_service response.")
-        self.token_data = data
+    #    self.token_data = data
         return data
     
     # Returns the access_token only (no the full json metadata)
-    def get_access_token(self):
-        """
-        Returns the access token only.
-        """
-        if not self.token_data:
-            raise RuntimeError(
-                "[ERROR] Token data not initialized. "
-                "Call fetch_access_token() first. "
-                "Or check meli_auth_service is up and listening connections."
-            )
-        return self.token_data["access_token"]
+    #def get_access_token(self):
+    #    """
+    #    Returns the access token only.
+    #    """
+    #    if not self.token_data:
+    #        raise RuntimeError(
+    #            "[ERROR] Token data not initialized. "
+    #            "Call fetch_access_token() first. "
+    #            "Or check meli_auth_service is up and listening connections."
+    #        )
+    #    return self.token_data["access_token"]
     
     # Returns token along metadata.
-    def get_token_info(self):
-        """
-        Returns the full token info dictionary from the auth service.
-        """
-        if not self.token_data:
-            raise RuntimeError(
-                "[ERROR] Token data not initialized. "
-                "Call fetch_access_token() first."
-            )
-        return self.token_data
+    #def get_token_info(self):
+    #    """
+    #    Returns the full token info dictionary from the auth service.
+    #    """
+    #    if not self.token_data:
+    #        raise RuntimeError(
+    #            "[ERROR] Token data not initialized. "
+    #            "Call fetch_access_token() first."
+    #        )
+    #    return self.token_data
     
     def initialize_access_token(self):
         return self.fetch_access_token()
