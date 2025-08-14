@@ -1,6 +1,6 @@
 from app.infrastructure.auth_api import AuthServiceClient
 from app.infrastructure.meli_api import MeliCategoryClient
-from app.infrastructure.access_token_repository import AccessTokenRepository
+from app.infrastructure.repository.access_token_repository import AccessTokenRepository
 
 class CategoryService:
     def __init__(self, auth_service_client: AuthServiceClient):

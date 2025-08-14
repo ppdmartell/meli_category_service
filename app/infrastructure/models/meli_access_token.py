@@ -13,4 +13,4 @@ class MeliAccessToken(Base):
     access_token_expires_at = Column(DateTime, nullable=False)
     refresh_token_expires_at = Column(DateTime, nullable=False)
 
-    __table_args__ = (UniqueConstraint("singleton_key", name="uix_singleton_key"),)
+    __table_args__ = (UniqueConstraint("singleton_key", name="uix_singleton_key"),) # Also enforces 1-row
