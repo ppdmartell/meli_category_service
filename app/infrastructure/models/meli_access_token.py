@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint
-from sqlalchemy.ext.declarative import declarative_base
+from app.infrastructure.database import Base
 
-Base = declarative_base()
 
 class MeliAccessToken(Base):
     __tablename__ = "meli_access_tokens"

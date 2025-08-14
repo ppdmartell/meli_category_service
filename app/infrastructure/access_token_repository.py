@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta, timezone
 
 from app.infrastructure.database import get_session
-from app.infrastructure.models import MeliAccessToken
+from app.infrastructure.models.meli_access_token import MeliAccessToken
 
 class AccessTokenRepository:
     def get_access_token(self) -> str | None:

@@ -5,11 +5,11 @@ from app.dependencies.singleton_auth_service_client import get_auth_service_clie
 
 router = APIRouter()
 
-#api_version = "/api/v1"
+api_version = "/api/v1"
 
-@router.get("/api/v1/sites")
+@router.get(f"{api_version}/sites")
 def get_sites(auth_client: AuthServiceClient = Depends(get_auth_service_client)):        # Injecting the singleton for AuthServiceClient
     category_service = CategoryService(auth_client)
     return category_service.get_sites()
 
-#@router.get("")
+#@router.get(f"{api_version}/")
