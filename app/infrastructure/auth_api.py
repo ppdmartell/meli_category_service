@@ -55,7 +55,6 @@ class AuthServiceClient:
         if not data.get("access_token"):
             raise RuntimeError("[ERROR] No access_token found in meli_auth_service response.")
         self.token_data = data
-        print(f"[DEBUG] ###################################### {data}")
         return data
     
     # Returns the access_token only (no the full json metadata)
@@ -63,7 +62,6 @@ class AuthServiceClient:
         """
         Returns the access token only.
         """
-        print(f"[DEBUG] ###################################### {self.token_data}")
         if not self.token_data:
             raise RuntimeError(
                 "[ERROR] Token data not initialized. "
@@ -85,4 +83,4 @@ class AuthServiceClient:
         return self.token_data
     
     def initialize_access_token(self):
-        self.fetch_access_token()
+        return self.fetch_access_token()

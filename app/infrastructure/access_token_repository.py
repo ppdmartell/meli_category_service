@@ -73,5 +73,5 @@ class AccessTokenRepository:
         """
         access_token_record = self.get_access_token_full_row() # will always return a row
         now = datetime.now(timezone.utc)
-        expire_time_with_grace = access_token_record.access_token_expires_at - timedelta(seconds=grace_seconds)
+        expire_time_with_grace = access_token_record.access_token_expires_at.replace(tzinfo=timezone.utc) - timedelta(seconds=grace_seconds)
         return now >= expire_time_with_grace

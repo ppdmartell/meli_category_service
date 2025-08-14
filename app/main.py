@@ -5,6 +5,7 @@ from app.core.category_service import CategoryService
 from app.infrastructure.auth_api import AuthServiceClient
 from app.routes import category_routes
 from app.dependencies.singleton_auth_service_client import get_auth_service_client # Singleton imported
+from app.infrastructure.db_initializer import initialize_database
 
 
 category_service = CategoryService(get_auth_service_client())   # Singleton injected to the constructor
@@ -15,6 +16,12 @@ category_service = CategoryService(get_auth_service_client())   # Singleton inje
 # NOTE: Code before yield executes before and code after yield is executed after
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        initialize_database()
+        print("[INFO] Database initialized successfully.")
+    except Exception as e:
+        print("[ERROR] Database couldn't be initialize at startup. Please check and correct.")
+
     try:
         category_service.initialize_access_token()
         print("[INFO] Access token fetched successfully at startup.")
