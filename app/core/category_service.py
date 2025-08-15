@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from fastapi import HTTPException
 
 from app.infrastructure.auth_api import AuthServiceClient
 from app.infrastructure.meli_api import MeliCategoryClient
@@ -6,7 +7,7 @@ from app.infrastructure.repository.access_token_repository import AccessTokenRep
 from app.infrastructure.repository.site_repository import SiteRepository
 
 class CategoryService:
-    def __init__(self, auth_service_client: AuthServiceClient):
+    def __init__(self, auth_service_client: AuthServiceClient = None):
         self.access_token_repo = AccessTokenRepository()
         self.site_repo = SiteRepository()
         self.auth_service_client = auth_service_client
@@ -80,3 +81,20 @@ class CategoryService:
             print("[INFO] Sites not found in database, retrieving them via API.")
             return self.call_api_and_save_sites()
         return sites
+    
+
+    def get_by_id(self, site_id: str) -> dict | None:
+        """
+        Returns the top categories by the site id. If no category is found, an exception is thrown.
+        """
+        site = self.site_repo.get_by_id(site_id)
+        print(f"[DEBUG] ############## site: {site}")
+        if site is None:
+            raise HTTPException(status_code=404, detail=f"Site {site_id} was not found.")
+        return site
+
+    def get_top_level_categories(self, site_id: str) -> list[dict]:
+        self.get_by_id(site_id)
+        access_token = self.get_access_token()
+        return self.meli_client.get_top_level_categories(access_token, site_id)     
+    

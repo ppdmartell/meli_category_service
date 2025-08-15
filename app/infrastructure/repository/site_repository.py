@@ -45,3 +45,17 @@ class SiteRepository:
                 session.commit()
         except SQLAlchemyError as e:
             print(f"[ERROR] Failed to persist the sites: {e}")
+
+    
+    def get_by_id(self, site_id: str) -> dict | None:
+        """
+        Retrieve a site by its id
+        """
+        try:
+            with get_session() as session:
+                site = session.get(MeliSite, site_id)
+                print(f"[DEBUG] ########## site: {site} from site_id: {site_id}")
+                return site.to_dict() if site else None
+        except SQLAlchemyError as e:
+            print(f"[ERROR] Failed to retrieve site with id {site_id}: {e}")
+
