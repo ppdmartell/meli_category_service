@@ -96,5 +96,5 @@ class CategoryService:
     def get_top_level_categories(self, site_id: str) -> list[dict]:
         self.get_by_id(site_id)
         access_token = self.get_access_token()
-        return self.meli_client.get_top_level_categories(access_token, site_id)     
+        return self.meli_client.get_top_level_categories(access_token, site_id) 
     

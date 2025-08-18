@@ -16,6 +16,7 @@ class MeliCategoryClient:
             raise RuntimeError("[ERROR] No access_token was provided, unable to continue with request.")
         
         url = f"{self.MELI_API_BASE_URL}/sites"
+        print(f"[DEBUG] ############# URL: {url}")
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
