@@ -4,12 +4,13 @@ from fastapi import HTTPException
 from app.infrastructure.auth_api import AuthServiceClient
 from app.infrastructure.meli_api import MeliCategoryClient
 from app.core.access_token_service import AccessTokenService
-from app.infrastructure.repository.site_repository import SiteRepository
+from app.core.site_service import SiteService
+
 
 class CategoryService:
     def __init__(self, auth_service_client: AuthServiceClient = None):
         self.access_token_service = AccessTokenService()
-        self.site_repo = SiteRepository()
+        self.site_service = SiteService()
         self.auth_service_client = auth_service_client
         self.meli_client = MeliCategoryClient()
         self.grace_period = 24
@@ -50,7 +51,7 @@ class CategoryService:
     def call_api_and_save_sites(self):
         access_token = self.get_access_token()
         sites = self.meli_client.get_sites(access_token)
-        self.site_repo.save_sites(sites)
+        self.site_service.save_sites(sites)
         print("[INFO] Sites retrieved via API and persisted in the database.")
         return sites
 
@@ -62,7 +63,7 @@ class CategoryService:
         in the database.
         If there are no sites in the database, will directly make the API call and persist them.
         """
-        sites = self.site_repo.get_sites()
+        sites = self.site_service.get_sites()
         if sites:
             print("[INFO] Sites found in the database, checking age.")
             latest_updated = max(site["updated_at"] for site in sites)
@@ -87,7 +88,7 @@ class CategoryService:
         """
         Returns the top categories by the site id. If no category is found, an exception is thrown.
         """
-        site = self.site_repo.get_by_id(site_id)
+        site = self.site_service.get_by_id(site_id)
         print(f"[DEBUG] ############## site: {site}")
         if site is None:
             raise HTTPException(status_code=404, detail=f"Site {site_id} was not found.")
