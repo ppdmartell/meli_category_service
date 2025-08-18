@@ -7,6 +7,9 @@ from app.infrastructure.database import get_session
 from app.infrastructure.models.meli_access_token import MeliAccessToken
 
 class AccessTokenRepository:
+    def __init__(self):
+        self.grace_seconds = 120
+
     def get_access_token(self) -> str | None:
         """Retrieve only the access_token from the stored row."""
         try:
@@ -66,12 +69,12 @@ class AccessTokenRepository:
             print(f"[ERROR] Failed to retrieve the access_token full row (record): e")
     
 
-    def is_existing_access_token_expired(self, grace_seconds: int = 120) -> bool:
+    def is_existing_access_token_expired(self) -> bool:
         """
         Check if the stored access token is expired.
         grace_seconds: token is considered expired this many seconds before actual expiration.
         """
         access_token_record = self.get_access_token_full_row() # will always return a row
         now = datetime.now(timezone.utc)
-        expire_time_with_grace = access_token_record.access_token_expires_at.replace(tzinfo=timezone.utc) - timedelta(seconds=grace_seconds)
+        expire_time_with_grace = access_token_record.access_token_expires_at.replace(tzinfo=timezone.utc) - timedelta(seconds=self.grace_seconds)
         return now >= expire_time_with_grace

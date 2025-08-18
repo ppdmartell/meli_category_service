@@ -3,12 +3,12 @@ from fastapi import HTTPException
 
 from app.infrastructure.auth_api import AuthServiceClient
 from app.infrastructure.meli_api import MeliCategoryClient
-from app.infrastructure.repository.access_token_repository import AccessTokenRepository
+from app.core.access_token_service import AccessTokenService
 from app.infrastructure.repository.site_repository import SiteRepository
 
 class CategoryService:
     def __init__(self, auth_service_client: AuthServiceClient = None):
-        self.access_token_repo = AccessTokenRepository()
+        self.access_token_service = AccessTokenService()
         self.site_repo = SiteRepository()
         self.auth_service_client = auth_service_client
         self.meli_client = MeliCategoryClient()
@@ -17,17 +17,17 @@ class CategoryService:
 
     
     def get_access_token(self):
-        token = self.access_token_repo.get_access_token()
+        token = self.access_token_service.get_access_token()
         if not token:
             self.fetch_and_save()
-            token = self.access_token_repo.get_access_token()
+            token = self.access_token_service.get_access_token()
         return token
 
 
     def fetch_and_save(self):
         access_token_data = self.auth_service_client.initialize_access_token()
         print("[INFO] New access token fetched.")
-        self.access_token_repo.save_access_token(access_token_data)
+        self.access_token_service.save_access_token(access_token_data)
         print("[INFO] New access token saved into database.")
 
 
@@ -39,7 +39,7 @@ class CategoryService:
         access_token = self.get_access_token()
         if access_token:
             print("[INFO] Access token found in the database. Proceeding if still valid.")
-            if self.access_token_repo.is_existing_access_token_expired():
+            if self.access_token_service.is_existing_access_token_expired():
                 print("[INFO] Access token expired, fetching a new one and save it into database.")
                 self.fetch_and_save()
         else:
