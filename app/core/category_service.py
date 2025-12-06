@@ -86,16 +86,33 @@ class CategoryService:
 
     def get_by_id(self, site_id: str) -> dict | None:
         """
-        Returns the top categories by the site id. If no category is found, an exception is thrown.
+        This method gets information from the site by using the site_id passed via parameter.
+        e.g. site: {
+            'default_currency_id': 'UYU',
+            'id': 'MLU',
+            'name': 'Uruguay',
+            'updated_at': datetime.datetime(2025, 12, 4, 19, 7, 13, 956660)
+        }
         """
         site = self.site_service.get_by_id(site_id)
-        print(f"[DEBUG] ############## site: {site}")
         if site is None:
             raise HTTPException(status_code=404, detail=f"Site {site_id} was not found.")
         return site
 
-    def get_top_level_categories(self, site_id: str) -> list[dict]:
+    def build_category_tree(self, site_id: str) -> list[dict]:
+        """
+        This method is critical, retrieves the top-level categories, and from there
+        builds the category tree by filling the gaps between the top-level categories
+        and the children categories, down to the leaves categories. It also persists
+        in the database this tree to be fed to the scrappers.
+
+        Checks for the category tree stored previously in the database.
+        If found, will check for expiring grace period set. If expired,
+        will call the API for refreshed info and build and persist the
+        category tree in the database.
+        If there is no category tree in the database, will directly make the API call
+        and build and persist it. Then return it. 
+        """
         self.get_by_id(site_id)
         access_token = self.get_access_token()
-        return self.meli_client.get_top_level_categories(access_token, site_id) 
-    
+        top_level_categories = self.meli_client.get_top_level_categories(access_token, site_id)
