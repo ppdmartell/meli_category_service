@@ -53,5 +53,4 @@ class MeliCategoryClient:
             print("[ERROR] Status code: ", response.status_code)
             print("[ERROR] Response text: ", response.text)
             raise e
-
         return response.json()

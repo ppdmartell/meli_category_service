@@ -47,7 +47,7 @@ class SiteRepository:
             print(f"[ERROR] Failed to persist the sites: {e}")
 
     
-    def get_by_id(self, site_id: str) -> dict | None:
+    def get_site_info_by_id(self, site_id: str) -> dict | None:
         """
         Retrieve a site by its id
         """

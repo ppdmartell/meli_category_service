@@ -19,8 +19,8 @@ class SiteService:
         return self.site_repo.get_sites()
     
 
-    def get_by_id(self, site_id: str) -> dict | None:
+    def get_site_info_by_id(self, site_id: str) -> dict | None:
         """
-        Calls get_by_id in site_repo
+        Calls get_site_info_by_id in site_repo
         """
-        return self.site_repo.get_by_id(site_id)
+        return self.site_repo.get_site_info_by_id(site_id)

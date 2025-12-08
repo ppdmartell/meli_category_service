@@ -84,7 +84,7 @@ class CategoryService:
         return sites
     
 
-    def get_by_id(self, site_id: str) -> dict | None:
+    def get_site_info_by_id(self, site_id: str) -> dict | None:
         """
         This method gets information from the site by using the site_id passed via parameter.
         e.g. site: {
@@ -94,7 +94,7 @@ class CategoryService:
             'updated_at': datetime.datetime(2025, 12, 4, 19, 7, 13, 956660)
         }
         """
-        site = self.site_service.get_by_id(site_id)
+        site = self.site_service.get_site_info_by_id(site_id)
         if site is None:
             raise HTTPException(status_code=404, detail=f"Site {site_id} was not found.")
         return site
@@ -113,6 +113,15 @@ class CategoryService:
         If there is no category tree in the database, will directly make the API call
         and build and persist it. Then return it. 
         """
-        self.get_by_id(site_id)
-        access_token = self.get_access_token()
-        top_level_categories = self.meli_client.get_top_level_categories(access_token, site_id)
+        access_token = self.get_access_token()      # Always try to get an access token to make API calls
+        self.get_site_info_by_id(site_id)           # Fails with 404 if site_id doesn't exist (XLW instead of MLU)
+
+        # This line gets all the categories for a certain site_id, including its names -> list[dict]
+        top_level_categories_info = self.meli_client.get_top_level_categories(access_token, site_id)
+
+        # And this line strips all the info and leaves only a list of string ["MLU5725","MLU1512","MLU1403",...]
+        top_level_categories_id_strings = [category["id"] for category in top_level_categories_info]
+
+        #for category_id in top_level_categories_id_strings:
+
+        return top_level_categories_id_strings
