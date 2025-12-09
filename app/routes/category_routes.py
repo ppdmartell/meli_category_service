@@ -19,7 +19,7 @@ async def build_category_tree(site_id: str):
     category_service = CategoryService()
     return category_service.build_category_tree(site_id)
 
-#@router.get("/{category_id}")
-#async def get_category_info(category_id: str):
-#    category_service = CategoryService()
-#    return category_service.get_category_info(category_id)
+@router.get("/{category_id}")
+async def get_category_info(category_id: str):
+    category_service = CategoryService()
+    return category_service.get_category_info(category_id)

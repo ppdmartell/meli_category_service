@@ -39,11 +39,13 @@ class Category(Base):
     # Helper fields to speed up queries
     status = Column(String(50), nullable=False, default="completed")  # completed, pending, in_progress
     depth = Column(Integer, nullable=False, default=0)
+    total_items_in_this_category = Column(Integer, nullable=False, default=0)
     full_path = Column(String(1000), nullable=True)
     has_children = Column(Boolean, nullable=False, default=False)
     total_children = Column(Integer, nullable=False, default=0)
 
-    created_at = Column(DateTime, nullable=False)
+    persisted_at = Column(DateTime, nullable=False)
+    created_in_meli_at = Column(DateTime, nullable=False)    # Could be old or a new category
 
     # Backref to tree metadata
     tree = relationship("CategoryTree", back_populates="meli_categories")

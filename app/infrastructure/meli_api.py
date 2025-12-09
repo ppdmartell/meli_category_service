@@ -10,13 +10,14 @@ class MeliCategoryClient:
         self.MELI_API_BASE_URL = Settings.MELI_API_BASE_URL
 
 
-    # This method calls MeLi API and get all the sites (countries) MeLi is in.
     def get_sites(self, access_token):
+        """
+        This method calls MeLi API and get all the sites (countries) MeLi is available for.
+        """
         if not access_token:
             raise RuntimeError("[ERROR] No access_token was provided, unable to continue with request.")
         
         url = f"{self.MELI_API_BASE_URL}/sites"
-        print(f"[DEBUG] ############# URL: {url}")
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
@@ -32,16 +33,38 @@ class MeliCategoryClient:
         return response.json()
 
 
-    # This method calls MeLi API and get all the categories for a certain site_id (country)
-    # e.g. MLU (Uruguay), MLA (Argentina), ...
-    # and returns the top categories
-    # Sample curl -X GET -H 'Authorization: Bearer $ACCESS_TOKEN'   https://api.mercadolibre.com/sites/MLA/categories
     def get_top_level_categories(self, access_token, site_id: str) -> list[dict]:
+        """
+        This method calls MeLi API and get all the categories for a certain site_id (country)
+        e.g. MLU (Uruguay), MLA (Argentina), ...
+        and returns the top categories
+        Sample curl -X GET -H 'Authorization: Bearer $ACCESS_TOKEN' https://api.mercadolibre.com/sites/MLA/categories
+        """
         if not site_id:
             raise RuntimeError("[ERROR] No site_id found, please provide one.")
         
-        self.MELI_API_BASE_URL = f"{Settings.MELI_API_BASE_URL}/sites/{site_id}/categories"
-        url = self.MELI_API_BASE_URL
+        url = f"{self.MELI_API_BASE_URL}/sites/{site_id}/categories"
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print("[ERROR] Status code: ", response.status_code)
+            print("[ERROR] Response text: ", response.text)
+            raise e
+        return response.json()
+    
+
+    def get_category_info(self, category_id, access_token):
+        """
+        Given a certain category_id (e.g. MLU442392), an API call will be made to MeLi to retrieve
+        info about that category such as URL, name, etc...
+        Sample curl -X GET -H 'Authorization: Bearer $ACCESS_TOKEN' https://api.mercadolibre.com/categories/MLA5725
+        """
+        url = f"{self.MELI_API_BASE_URL}/categories/{category_id}"
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
