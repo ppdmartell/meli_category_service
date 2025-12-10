@@ -1,6 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed # as_completed is a function not an alias
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
+from functools import lru_cache
+import logging
 
 from app.infrastructure.auth_api import AuthServiceClient
 from app.infrastructure.meli_api import MeliCategoryClient
@@ -16,42 +18,57 @@ class CategoryService:
         self.meli_client = MeliCategoryClient()
         self.grace_period = 24
         self.grace_unit = "hours"       # days, seconds, microseconds, milliseconds, minutes, hours, and weeks
+        self.access_token = None
+
+        self.executor = ThreadPoolExecutor(max_workers=10)
+        self.futures = {}
+        self.logger = logging.getLogger(__name__)
 
     
-    def get_access_token(self):
-        token = self.access_token_service.get_access_token()
-        if not token:
-            self.fetch_and_save()
-            token = self.access_token_service.get_access_token()
-        return token
+    # def get_access_token(self):
+    #     """
+    #     Tries to get an access token from the database. If not found, then will make a call to
+    #     the meli_auth_service, get an access token, and then persist it in the database.
+    #     """
+    #     token = self.access_token_service.get_access_token()
+    #     if not token:
+    #         self.fetch_and_save()
+    #         token = self.access_token_service.get_access_token()
+    #     return token
 
 
     def fetch_and_save(self):
-        access_token_data = self.auth_service_client.initialize_access_token()
-        print("[INFO] New access token fetched.")
+        access_token_data = self.auth_service_client.get_access_token()
+        self.logger.info("[INFO] New access token fetched.")
         self.access_token_service.save_access_token(access_token_data)
-        print("[INFO] New access token saved into database.")
+        self.logger.info("[INFO] New access token saved into database.")
+        return access_token_data.get("access_token")
 
 
-    def initialize_access_token(self):
+    def get_access_token(self):
         """
         Check if a token exists. If so, checks if it's expired. If expired, fetch a new one
         from meli_auth_service and saves it in the database.
         """
-        access_token = self.get_access_token()
-        if access_token:
-            print("[INFO] Access token found in the database. Proceeding if still valid.")
-            if self.access_token_service.is_existing_access_token_expired():
-                print("[INFO] Access token expired, fetching a new one and save it into database.")
-                self.fetch_and_save()
+        token_from_db = self.access_token_service.get_access_token()
+        if not token_from_db:
+            self.logger.info("[INFO] No access_token found for current session, requesting a new one.")
+            self.access_token = self.fetch_and_save()
+            return self.access_token
         else:
-            print("[INFO] No access token found, requesting a new one.")
-            self.fetch_and_save()
+            self.logger.info("[INFO] Access token found in the database. Checking if still valid.")
+            if self.access_token_service.is_existing_access_token_expired():
+                self.logger.info("[INFO] Access token expired, fetching a new one and save it into database.")
+                self.access_token = self.fetch_and_save()
+            else:
+                self.logger.info("Access token not expired, returning it from database.")
+                self.access_token = token_from_db
+
+        return self.access_token
 
     
     def call_api_and_save_sites(self):
-        access_token = self.get_access_token()
-        sites = self.meli_client.get_sites(access_token)
+        sites = self.meli_client.get_sites(self.get_access_token())
         self.site_service.save_sites(sites)
         print("[INFO] Sites retrieved via API and persisted in the database.")
         return sites
@@ -110,6 +127,7 @@ class CategoryService:
         return self.meli_client.get_category_info(category_id, access_token)
 
 
+    @lru_cache(maxsize=None)
     def get_category_info_thread_safe(self, category_id: str) -> dict:
         """
         This method is custom-made, its purpose is to return the data in a specific way to make
@@ -129,7 +147,8 @@ class CategoryService:
         # Return the data in a dictionary form. Since this will be called several times using
         # threads, each time a dictionary will be returned, with the key being the category_id.
         # Threads only return this data, never modifies the shared object.
-        return category_id, {
+        self.logger.debug(f"[DEBUG] Calling: {category_id}")
+        return {
             "id": category_id,
             "name": category_info.get("name"),
             "site_id": category_id[:3],
@@ -137,71 +156,111 @@ class CategoryService:
             "total_items_in_this_category": category_info.get("total_items_in_this_category"),
             "fragile": category_info.get("settings").get("fragile", False),
             "parent_id": category_info.get("path_from_root"),
-            "children": category_info.get("children_categories", [])
+
+            # To be filled later
+            "children": {},
+
+            # We retain only the child IDs for recursion
+            "children_ids": [
+                child["id"] for child in category_info.get("children_categories", [])
+            ]
+        }
+    
+
+    def build_category_recursive(self, category_id: str) -> dict:
+        category_info = self.get_category_info_thread_safe(category_id)
+
+        child_ids = category_info["children_ids"]
+        if not child_ids:
+            return category_info # No children, is a leaf category, no further processing
+
+        for cid in child_ids:
+            category_info["children"][cid] = self.build_category_recursive(cid)
+        
+        return category_info
+    
+
+    def build_category_tree(self, site_id: str) -> dict:
+        access_token = self.get_access_token()
+        self.get_site_info_by_id(site_id)
+
+        top_level_categories = self.meli_client.get_top_level_categories(access_token, site_id)
+        top_level_ids = [cat["id"] for cat in top_level_categories] # A list of strings [categories ids]
+        
+        tree = {}
+
+        futures = {
+            self.executor.submit(self.build_category_recursive, cid): cid for cid in top_level_ids
         }
 
+        for future in as_completed(futures):
+            cid = futures[future]
+            tree[cid] = future.result()
+        
+        return tree
+
     
-    def initialize_tree_with_top_level_categories(self, top_level_categories_id_strings: list[str]) -> dict:
-        """
-        Mercado Libre only provides URL (permalink) for top-level categories, so this method
-        initializes the tree (dictionary) and get's the permalink for the top-level categories
-        via API calls, this is the first step.
+    # def initialize_tree_with_top_level_categories(self, top_level_categories_id_strings: list[str]) -> dict:
+    #     """
+    #     Mercado Libre only provides URL (permalink) for top-level categories, so this method
+    #     initializes the tree (dictionary) and get's the permalink for the top-level categories
+    #     via API calls, this is the first step.
 
-        import time
-        start = time.perf_counter()
-        end = time.perf_counter()
-        execution_time = end - start
+    #     import time
+    #     start = time.perf_counter()
+    #     end = time.perf_counter()
+    #     execution_time = end - start
 
-        Profiling time without threads: 9.0332 seconds
-        Profiling time with threads: 1.6221 seconds
-        """
-        category_tree = {}
+    #     Profiling time without threads: 9.0332 seconds
+    #     Profiling time with threads: 1.6221 seconds
+    #     """
+    #     category_tree = {}
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            # cid is category_id, just used to save characters
-            futures = {executor.submit(self.get_category_info_thread_safe, cid): cid for cid in top_level_categories_id_strings}
+    #     with ThreadPoolExecutor(max_workers=10) as executor:
+    #         # cid is category_id, just used to save characters
+    #         futures = {executor.submit(self.get_category_info_thread_safe, cid): cid for cid in top_level_categories_id_strings}
 
-            for future in as_completed(futures):
-                cid = futures[future]
-                try:
-                    category_id, data = future.result()
-                except Exception as exc:
-                    # If Critical failure -> abort everything
-                    raise RuntimeError(f"[CRITICAL] Failed to fetch category {cid}: {exc}")
+    #         for future in as_completed(futures):
+    #             cid = futures[future]
+    #             try:
+    #                 category_id, data = future.result()
+    #             except Exception as exc:
+    #                 # If Critical failure -> abort everything
+    #                 raise RuntimeError(f"[CRITICAL] Failed to fetch category {cid}: {exc}")
                 
-                category_tree[category_id] = data
+    #             category_tree[category_id] = data
             
-            # Raise a RuntimeError if the lengths differ, which means one or more categories were not processed
-            if len(top_level_categories_id_strings) != len(category_tree):
-                raise RuntimeError(f"[CRITICAL] Resulting dictionary length for top-level categories"
-                                   f" differs in size with the list of strings containing the category ids.")
+    #         # Raise a RuntimeError if the lengths differ, which means one or more categories were not processed
+    #         if len(top_level_categories_id_strings) != len(category_tree):
+    #             raise RuntimeError(f"[CRITICAL] Resulting dictionary length for top-level categories"
+    #                                f" differs in size with the list of strings containing the category ids.")
             
-        return category_tree
+    #     return category_tree
 
 
-    def build_category_tree(self, site_id: str) -> list[dict]:
-        """
-        This method is critical, retrieves the top-level categories, and from there
-        builds the category tree by filling the gaps between the top-level categories
-        and the children categories, down to the leaves categories. It also persists
-        in the database this tree to be fed to the scrappers.
+    # def build_category_tree(self, site_id: str) -> list[dict]:
+    #     """
+    #     This method is critical, retrieves the top-level categories, and from there
+    #     builds the category tree by filling the gaps between the top-level categories
+    #     and the children categories, down to the leaves categories. It also persists
+    #     in the database this tree to be fed to the scrappers.
 
-        Checks for the category tree stored previously in the database.
-        If found, will check for expiring grace period set. If expired,
-        will call the API for refreshed info and build and persist the
-        category tree in the database.
-        If there is no category tree in the database, will directly make the API call
-        and build and persist it. Then return it. 
-        """
-        access_token = self.get_access_token()      # Always try to get an access token to make API calls
-        self.get_site_info_by_id(site_id)           # Fails with 404 if site_id doesn't exist (XLW instead of MLU)
+    #     Checks for the category tree stored previously in the database.
+    #     If found, will check for expiring grace period set. If expired,
+    #     will call the API for refreshed info and build and persist the
+    #     category tree in the database.
+    #     If there is no category tree in the database, will directly make the API call
+    #     and build and persist it. Then return it. 
+    #     """
+    #     access_token = self.get_access_token()      # Always try to get an access token to make API calls
+    #     self.get_site_info_by_id(site_id)           # Fails with 404 if site_id doesn't exist (XLW instead of MLU)
 
-        # This line gets all the categories for a certain site_id, including its names -> list[dict]
-        top_level_categories_info = self.meli_client.get_top_level_categories(access_token, site_id)
+    #     # This line gets all the categories for a certain site_id, including its names -> list[dict]
+    #     top_level_categories_info = self.meli_client.get_top_level_categories(access_token, site_id)
 
-        # And this line strips all the info and leaves only a list of string ["MLU5725","MLU1512","MLU1403",...]
-        top_level_categories_id_strings = [category["id"] for category in top_level_categories_info]
+    #     # And this line strips all the info and leaves only a list of string ["MLU5725","MLU1512","MLU1403",...]
+    #     top_level_categories_id_strings = [category["id"] for category in top_level_categories_info]
 
-        category_tree = self.initialize_tree_with_top_level_categories(top_level_categories_id_strings)
+    #     category_tree = self.initialize_tree_with_top_level_categories(top_level_categories_id_strings)
 
-        return category_tree
+    #     return category_tree

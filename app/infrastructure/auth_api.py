@@ -53,5 +53,5 @@ class AuthServiceClient:
         return data
     
     
-    def initialize_access_token(self):
+    def get_access_token(self):
         return self.fetch_access_token()
