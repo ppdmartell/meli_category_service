@@ -20,7 +20,7 @@ class CategoryService:
         self.grace_unit = "hours"       # days, seconds, microseconds, milliseconds, minutes, hours, and weeks
         self.access_token = None
 
-        self.executor = ThreadPoolExecutor(max_workers=10)
+        self.executor = ThreadPoolExecutor(max_workers=20)
         self.futures = {}
         self.logger = logging.getLogger(__name__)
 
@@ -123,8 +123,7 @@ class CategoryService:
         This method calls meli client and retrieve information for a category by providing
         the category id (e.g. MLU5725)
         """
-        access_token = self.get_access_token()      # Always try to get an access token to make API calls
-        return self.meli_client.get_category_info(category_id, access_token)
+        return self.meli_client.get_category_info(category_id, self.get_access_token())
 
 
     @lru_cache(maxsize=None)
@@ -134,12 +133,14 @@ class CategoryService:
         it useful for the multi-threading category tree building. Just retrieve the data for
         each category here, without sharing mutability, and later aggregate the data into the
         top-level tree (which later will become in the full category tree).
+
+        This method is made for building the category tree.
         """
         try:
-            category_info = self.get_category_info(category_id)  # This returns a dictionary
+            category_info = self.meli_client.get_category_info(category_id, self.access_token) # -> dict
         except Exception as exc:
-            print(f"[CRITICAL ERROR]: Failed to fetch category info for {category_id}:"
-                  f" {exc}")
+            self.logger.critical(f"Failed to fetch category info for {category_id}:"
+                                 f" {exc}")
             # Re-raising the exception so the FastAPI route can raise a 500
             raise RuntimeError(f"Critical error building category tree, make sure a retry is"
                                f" attempted! -> {exc}")
