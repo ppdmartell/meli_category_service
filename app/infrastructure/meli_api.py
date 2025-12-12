@@ -153,3 +153,14 @@ class MeliCategoryClient:
         except Exception as exc:
             self.logger.critical(f"Failed to fetch category {category_id}: {exc}")
             raise
+
+    # TODO: Make this HTML scrapper resilient by implementing _resilient_html_scraper() method
+    def get_html_scrape_code(self, url) -> str:
+        """
+        Docstring for get_html_scrape_code:
+        This method is used to simply scrape a webpage but by using the throttler to avoid bans
+        and bots.
+        
+        :param url: URL from which retrieve the HTML code
+        """
+        return self._throttled_request("GET", url, expect_json=False)

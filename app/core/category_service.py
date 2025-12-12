@@ -12,14 +12,16 @@ from app.infrastructure.auth_api import AuthServiceClient
 from app.infrastructure.meli_api import MeliCategoryClient
 from app.core.access_token_service import AccessTokenService
 from app.core.site_service import SiteService
+from app.core.url_resolution_service import UrlResolutionService
 
 
 class CategoryService:
     def __init__(self, auth_service_client: AuthServiceClient = None):
         self.access_token_service = AccessTokenService()
         self.site_service = SiteService()
-        self.auth_service_client = auth_service_client
         self.meli_client = MeliCategoryClient()
+        self.url_resolution_service = UrlResolutionService()
+        self.auth_service_client = auth_service_client
         self.grace_period = 24
         self.grace_unit = "hours"       # days, seconds, microseconds, milliseconds, minutes, hours, and weeks
         self.access_token = None
@@ -30,7 +32,7 @@ class CategoryService:
         self.category_index = {}
         # And this lock is for the index, since it will be constructed at the same time the tree
         # is built, hence the lock, to avoid threading issues.
-        self.index_lock = Lock()
+        self._index_lock = Lock()
 
         self.logger = logging.getLogger(__name__)
         self.max_workers = 20           # We could consider increasing this value for faster tree-building
@@ -184,6 +186,36 @@ class CategoryService:
         return data
     
 
+    def dump_tree_and_index_to_json(self, category_tree, category_index, response_status, site_id):
+        # Dumping the tree and index JSON files.
+        tree_json_dir = os.path.join("app", "tree")
+        os.makedirs(tree_json_dir, exist_ok=True)
+        file_path = os.path.join(tree_json_dir, f"meli_category_tree_{site_id}.json")
+        file_path_index = os.path.join(tree_json_dir, f"meli_category_index_{site_id}.json")
+
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(category_tree, f, indent=2, ensure_ascii=False)
+            json_op_message = f"JSON file of the tree successfully created: {file_path}"
+            self.logger.info(json_op_message)
+            response_status.append(json_op_message)
+        except Exception as exc:
+            response_status.append(f"Error saving the JSON file of the tree: {exc}")
+        
+        # Dumping index
+        try:
+            with open(file_path_index, "w", encoding="utf-8") as f:
+                json.dump(category_index, f, indent=2, ensure_ascii=False)
+            json_op_message = (f"Index ({len(self.category_index)} items) JSON file successfully"
+                               f" created: {file_path_index}")
+            self.logger.info(json_op_message)
+            response_status.append(json_op_message)
+        except Exception as exc:
+            response_status.append(f"Error saving the index JSON file: {exc}")
+
+        return response_status
+
+
     def build_category_tree(self, site_id: str):
         """
         This one uses BFS to build the tree. And returns info about tree creation time and JSON file
@@ -192,9 +224,9 @@ class CategoryService:
         start = time.perf_counter()
         self.get_site_info_by_id(site_id)
         top_level_categories = self.meli_client.get_top_level_categories(self.get_access_token(), site_id)
-        tree = {}
+        category_tree = {}
         
-        queue = deque((cat["id"], tree) for cat in top_level_categories)
+        queue = deque((cat["id"], category_tree) for cat in top_level_categories)
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             while queue:
@@ -222,30 +254,19 @@ class CategoryService:
         self.logger.info(construction_time)
         response_status = [construction_time]
 
-        # Dumping the tree and index JSON files.
-        tree_json_dir = os.path.join("app", "tree")
-        os.makedirs(tree_json_dir, exist_ok=True)
-        file_path = os.path.join(tree_json_dir, f"meli_category_tree_{site_id}.json")
-        file_path_index = os.path.join(tree_json_dir, f"meli_category_index_{site_id}.json")
+        # Infer the URL for each category
+        self.url_resolution_service.resolve_url_for_categories(category_tree, self.category_index)
 
-        try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(tree, f, indent=2, ensure_ascii=False)
-            json_op_message = f"JSON file of the tree successfully created: {file_path}"
-            self.logger.info(json_op_message)
-            response_status.append(json_op_message)
-        except Exception as exc:
-            response_status.append(f"Error saving the JSON file of the tree: {exc}")
-        
-        # Dumping index
-        try:
-            with open(file_path_index, "w", encoding="utf-8") as f:
-                json.dump(self.category_index, f, indent=2, ensure_ascii=False)
-            json_op_message = (f"Index ({len(self.category_index)} items) JSON file successfully"
-                               f" created: {file_path_index}")
-            self.logger.info(json_op_message)
-            response_status.append(json_op_message)
-        except Exception as exc:
-            response_status.append(f"Error saving the index JSON file: {exc}")
+        # Dump JSON objects to JSON files
+        response_status = self.dump_tree_and_index_to_json(
+            category_tree, self.category_index, response_status, site_id)
 
         return response_status
+
+    
+    # Used to avoid calling the tree building process everytime.
+    # This method is only to test the usage of url inferer utilities
+    def stub_method(self):
+        tree = "Tree object"
+        index = "Index object"
+        return "Working on the url inference part."

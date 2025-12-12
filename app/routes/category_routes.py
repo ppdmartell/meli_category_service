@@ -17,7 +17,8 @@ async def build_category_tree(site_id: str):
     links to each category and other required data for each of the categories.
     """
     category_service = CategoryService()
-    return category_service.build_category_tree(site_id)
+    #return category_service.build_category_tree(site_id)
+    return category_service.stub_method() # Delete after testing
 
 @router.get("/{category_id}")
 async def get_category_info(category_id: str):
