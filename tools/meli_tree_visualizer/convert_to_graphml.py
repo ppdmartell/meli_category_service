@@ -1,8 +1,8 @@
 # The JSON file to be converted must be in the same folder of this script!!
 # Usage: python convert_to_graphml.py input.json output.graphml
 #
-# 0- Manually modify the resulting graphml file. Change (in line 2) attr.type="long" to attr.type="int".
-# 1- Download and install yEd Editor (https://www.yworks.com/products/yed/download)
+# 0- Download and install yEd Editor (https://www.yworks.com/products/yed/download)
+# 1- Manually modify the resulting graphml file. Change (in line 2) attr.type="long" to attr.type="int".
 # 2- Open the graphml file (you will see only 1 square)
 # 3- Edit > Properties Mapper > Add new configuration (+) > New configuration for Nodes
 # 4- Add new entry (+) >

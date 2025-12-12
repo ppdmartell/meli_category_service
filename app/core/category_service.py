@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed # as_completed is a function not an alias
+from threading import Lock
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
 from collections import deque
@@ -22,6 +23,14 @@ class CategoryService:
         self.grace_period = 24
         self.grace_unit = "hours"       # days, seconds, microseconds, milliseconds, minutes, hours, and weeks
         self.access_token = None
+
+        # This dictionary will be an index for containing all the categories without nesting
+        # (the tree flattened) which will help in infering the URLs for every category.
+        # Once the index (dict) is built, access time will be O(1)
+        self.category_index = {}
+        # And this lock is for the index, since it will be constructed at the same time the tree
+        # is built, hence the lock, to avoid threading issues.
+        self.index_lock = Lock()
 
         self.logger = logging.getLogger(__name__)
         self.max_workers = 20           # We could consider increasing this value for faster tree-building
@@ -141,14 +150,16 @@ class CategoryService:
         # threads, each time a dictionary will be returned, with the key being the category_id.
         # Threads only return this data, never modifies the shared object.
         self.logger.debug(f"Calling: {category_id}")
-        return {
+
+        data = {
             "id": category_id,
             "name": category_info.get("name"),
             "site_id": category_id[:3],
+            "permalink": category_info.get("permalink"),
             "url": category_info.get("permalink"),
             "total_items_in_this_category": category_info.get("total_items_in_this_category"),
             "fragile": category_info.get("settings").get("fragile", False),
-            "parent_id": category_info.get("path_from_root"),
+            "path_from_root": category_info.get("path_from_root"),
 
             # To be filled later
             "children": {},
@@ -158,6 +169,19 @@ class CategoryService:
                 child["id"] for child in category_info.get("children_categories", [])
             ]
         }
+
+        # Controlling the index construction with the lock.
+        # And shallow copying the data info (data.copy), otherwise we would get the fully
+        # constructed trees for each category as well.
+        with self.index_lock:
+            flat = data.copy()
+            # break the shared reference to the children dict. And avoid fully trees in the index dict
+            flat["children"] = {}
+            # make children_ids independent (list copy), since the list is also mutable
+            flat["children_ids"] = list(data["children_ids"])
+            self.category_index[category_id] = flat
+        
+        return data
     
 
     def build_category_tree(self, site_id: str):
@@ -198,9 +222,12 @@ class CategoryService:
         self.logger.info(construction_time)
         response_status = [construction_time]
 
+        # Dumping the tree and index JSON files.
         tree_json_dir = os.path.join("app", "tree")
         os.makedirs(tree_json_dir, exist_ok=True)
         file_path = os.path.join(tree_json_dir, f"meli_category_tree_{site_id}.json")
+        file_path_index = os.path.join(tree_json_dir, f"meli_category_index_{site_id}.json")
+
         try:
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(tree, f, indent=2, ensure_ascii=False)
@@ -209,5 +236,16 @@ class CategoryService:
             response_status.append(json_op_message)
         except Exception as exc:
             response_status.append(f"Error saving the JSON file of the tree: {exc}")
+        
+        # Dumping index
+        try:
+            with open(file_path_index, "w", encoding="utf-8") as f:
+                json.dump(self.category_index, f, indent=2, ensure_ascii=False)
+            json_op_message = (f"Index ({len(self.category_index)} items) JSON file successfully"
+                               f" created: {file_path_index}")
+            self.logger.info(json_op_message)
+            response_status.append(json_op_message)
+        except Exception as exc:
+            response_status.append(f"Error saving the index JSON file: {exc}")
 
         return response_status

@@ -26,7 +26,7 @@ class Category(Base):
     category_id = Column(String(50), nullable=False)
     name = Column(String(255), nullable=False)
     url = Column(String(1000), nullable=False)
-    parent_id = Column(String(50), nullable=True)  # MeLi parent category_id
+    parent_id = Column(String(50), nullable=True)  # Parent category_id or path_from_root array???
     fragile = Column(Boolean, nullable=True, default=False)
 
     # Self-referencing DB FKs
